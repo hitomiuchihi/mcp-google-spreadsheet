@@ -10,3 +10,6 @@ __pycache__/
 
 # エディタ設定
 .vscode/
+
+client_secret.json
+token.json
