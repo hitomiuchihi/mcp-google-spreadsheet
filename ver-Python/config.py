@@ -1,0 +1,1 @@
+# .env読み込み、設定管理（python-dotenv）
