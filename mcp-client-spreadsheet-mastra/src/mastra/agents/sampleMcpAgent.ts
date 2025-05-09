@@ -42,6 +42,6 @@ export const sampleMcpAgent = new Agent({
       回答は常に簡潔ですが情報量を保つようにしてください。ユーザーの質問に直接関連する情報を優先して提供してください。
   `,
   // model: anthropic("claude-3-5-sonnet-20241022"), // openai('gpt-4o'),に変更したい
-	model: openai('gpt-4o'),
+	model: openai('gpt-3.5-turbo'),
   tools: await mcp.getTools(),
 });

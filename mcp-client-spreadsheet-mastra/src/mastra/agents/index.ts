@@ -33,7 +33,7 @@ export const multiAgent = new Agent({
 `,
 
   // OpenAi model
-  model: openai('gpt-4o'),
+  model: openai('gpt-3.5-turbo'),
 
   // 利用可能なtools
   tools: { weatherTool, webSearchTool },
