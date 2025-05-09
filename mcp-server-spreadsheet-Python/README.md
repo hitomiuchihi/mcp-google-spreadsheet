@@ -52,3 +52,36 @@ pip freeze > requirements.txt
 ```txt
 必要事項を随時追記
 ```
+## エラー対処
+```bash
+ModuleNotFoundError: No module named 'mcp'
+```
+が出たら...@mastra/mcp に対応する Python側の mcp パッケージ（Model Context Protocol） がインストールされていないことを示しているので
+```bash
+pip install modelcontextprotocol
+```
+を実行すればOK。
+
+## 手順：mcp-google-spreadsheet を zsh で使えるようにする
+① .zshrc を開く
+```bash
+nano ~/.zshrc
+```
+② 最後にこの1行を追加：
+```bash
+alias mcp-google-spreadsheet='/Users/uchihifamily/mcp-google-spreadsheet/mcp-server-spreadsheet-Python/.venv/bin/python /Users/uchihifamily/mcp-google-spreadsheet/mcp-server-spreadsheet-Python/main.py'
+```
+
+③ 保存して終了（nanoの場合）
+	•	Ctrl + O → Enter（保存）
+	•	Ctrl + X（終了）
+
+④ 反映させる
+```bash
+source ~/.zshrc
+```
+
+⑤ 動作確認
+```bash
+mcp-google-spreadsheet
+```

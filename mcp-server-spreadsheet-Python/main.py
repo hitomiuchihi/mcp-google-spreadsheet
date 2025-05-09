@@ -1,62 +1,72 @@
 # main.py - Python版MCPサーバーのエントリーポイント
 
+import os
 import signal
 import sys
 import logging
+from contextlib import suppress
+from mcp import Server
+from mcp.transport.stdio import StdioTransport
 
 from google_auth import get_google_credentials
-from google_drive import list_files, copy_file, rename_file
 from google_sheet import (
     get_sheet_data,
     get_all_sheets_data,
     search_records_by_keyword,
-    # 以下に必要に応じて追加予定:
-    # copy_sheet_handler,
-    # rename_sheet_handler,
-    # list_sheets_handler,
-    # add_rows_handler,
-    # add_columns_handler,
-    # update_cells_handler,
-    # batch_update_cells_handler,
-    # delete_rows_handler,
-    # delete_columns_handler,
+    # convert_to_dict_records,
 )
 
-# MCPサーバーとトランスポート
-from mcp import Server
-from mcp.transport.stdio import StdioTransport
+
+def get_logger():
+    logger = logging.getLogger("mcp-server")
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
+
 
 def main():
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("mcp-server")
+    logger = get_logger()
 
-    def handle_exit(signum, frame):
-        logger.info("Signal received, exiting.")
+    # graceful shutdown 対応
+    def shutdown_handler(sig, frame):
+        logger.info("Shutting down MCP server...")
         sys.exit(0)
 
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
 
-    # Google認証確認（初回認証も含む）
-    try:
-        get_google_credentials()
-        logger.info("✅ Google authentication succeeded")
-    except Exception as e:
-        logger.error(f"❌ Failed to authenticate Google: {e}")
-        sys.exit(1)
-
+    logger.info("Starting MCP Server...")
     server = Server(transport=StdioTransport())
 
-    # MCPツール登録（関数名と整合性を合わせて必要に応じて整理）
-    server.register_tool("get_sheet_data", "Get data from Google Sheets", get_sheet_data)
-    server.register_tool("get_all_sheets_data", "Get all sheets from Google Sheets", get_all_sheets_data)
-    server.register_tool("search_records_by_keyword", "Search records across sheets by keyword", search_records_by_keyword)
-    # 追加で以下を定義していく:
-    # server.register_tool("add_rows", "Add rows to sheet", add_rows_handler)
-    # ...
+    # MCPツール登録
+    server.register_tool(
+        name="get_sheet_data",
+        description="指定したシートのデータを取得する（デフォルトは「シート1」）",
+        func=get_sheet_data,
+    )
+    server.register_tool(
+        name="get_all_sheets_data",
+        description="スプレッドシート内のすべてのシートデータを取得する",
+        func=get_all_sheets_data,
+    )
+    server.register_tool(
+        name="search_records_by_keyword",
+        description="スプレッドシート全体からキーワードを含む行を検索する",
+        func=search_records_by_keyword,
+    )
+    # server.register_tool(
+    #     name="convert_to_dict_records",
+    #     description="スプレッドシートのデータを辞書形式に変換する",
+    #     func=convert_to_dict_records,
+    # )
 
-    logger.info("🚀 MCP server starting...")
-    server.serve()
+    # サーバー起動
+    with suppress(KeyboardInterrupt):
+        server.serve()
+
 
 if __name__ == "__main__":
     main()
