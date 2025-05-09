@@ -120,6 +120,7 @@ def search_records_by_keyword(spreadsheet_name, keyword):
 def convert_to_dict_records(values):
     """
     単一シート（2次元リスト） or 複数シート（{sheet_name: 2D list}）両方対応
+    [['社名', '業種', ...], [...], ...] → [{社名: A, 業種: IT, ...}, {...}, ...]
     """
     if isinstance(values, dict):
         result = {}
@@ -127,21 +128,6 @@ def convert_to_dict_records(values):
             result[sheet_name] = convert_to_dict_records(rows)
         return result
 
-    if not values or len(values) < 2:
-        return []
-
-    headers = values[0]
-    records = []
-
-    for row in values[1:]:
-        record = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
-        records.append(record)
-
-    return records
-
-    """
-    [['社名', '業種', ...], [...], ...] → [{社名: A, 業種: IT, ...}, {...}, ...]
-    """
     if not values or len(values) < 2:
         return []
 

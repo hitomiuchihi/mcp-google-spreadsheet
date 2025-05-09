@@ -1,41 +1,62 @@
-# エントリーポイント
+# main.py - Python版MCPサーバーのエントリーポイント
 
-# API経由でアクセス可能なGoogleスプレッドシート情報
-accessible_spreadsheets = [
-	{
-		"sheet_name": "受講生選考状況",
-		"discription": "自社のプログラミングスクール受講生の転職活動における選考状況を管理するためのスプレッドシート",
-		"sheetUrl": "https://docs.google.com/spreadsheets/d/1LB3QS6peeSwadoguqhuFNfE53euEyQt--mHDoO9b8SY/edit?usp=sharing",	
-	},
- {
-	 "sheet_name": "Team Ms.メンバー",
-	 "discription": "自社プログラミングスクールの卒業生でパートナー企業に派遣されている/される可能性のあるTeam Ms.という組織のメンバー情報を管理するためのスプレッドシート",
-   "sheetUrl": "https://docs.google.com/spreadsheets/d/1a8mEaBSPvrGq6lZnrreAIgfmWDDhBtZeAvsOFa2Lu1c/edit?usp=sharing",
- },
- {
-	 "sheet_name": "パートナー企業",
-	 "discription": "Team Ms.のメンバーがインターンや業務委託という形態で派遣される可能性のある企業の情報を管理するためのスプレッドシート",
-   "sheetUrl": "https://docs.google.com/spreadsheets/d/1DHXzO8mUFYX6oMlrVzN6UOFEyxtG-qV27wGPd8rFYcA/edit?usp=sharing",
- },
- {
-	 "sheet_name": "受講生アンケート",
-	 "discription": "自社プログラミングスクールで現在受講中の受講生がm回収提出するアンケート結果を蓄積、管理しているスプレッドシート",
-   "sheetUrl": "https://docs.google.com/spreadsheets/d/1KKUJ8xcVGXevSEM9AnRKAifjZ1_xJsVU487fC6BPu-s/edit?usp=sharing",
- }
-]
+import signal
+import sys
+import logging
 
-# google_auth.pyの動作確認コード
+from google_auth import get_google_credentials
+from google_drive import list_files, copy_file, rename_file
+from google_sheet import (
+    get_sheet_data,
+    get_all_sheets_data,
+    search_records_by_keyword,
+    # 以下に必要に応じて追加予定:
+    # copy_sheet_handler,
+    # rename_sheet_handler,
+    # list_sheets_handler,
+    # add_rows_handler,
+    # add_columns_handler,
+    # update_cells_handler,
+    # batch_update_cells_handler,
+    # delete_rows_handler,
+    # delete_columns_handler,
+)
 
-# from google_auth import get_sheets_service
+# MCPサーバーとトランスポート
+from mcp import Server
+from mcp.transport.stdio import StdioTransport
 
-# if __name__ == '__main__':
-#     sheets_service = get_sheets_service()
-#     print("✅ Google Sheets API connected successfully!")
+def main():
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger("mcp-server")
 
-# google_sheet.pyの動作確認コード
-from google_sheet import get_all_sheets_data, convert_to_dict_records
+    def handle_exit(signum, frame):
+        logger.info("Signal received, exiting.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
+
+    # Google認証確認（初回認証も含む）
+    try:
+        get_google_credentials()
+        logger.info("✅ Google authentication succeeded")
+    except Exception as e:
+        logger.error(f"❌ Failed to authenticate Google: {e}")
+        sys.exit(1)
+
+    server = Server(transport=StdioTransport())
+
+    # MCPツール登録（関数名と整合性を合わせて必要に応じて整理）
+    server.register_tool("get_sheet_data", "Get data from Google Sheets", get_sheet_data)
+    server.register_tool("get_all_sheets_data", "Get all sheets from Google Sheets", get_all_sheets_data)
+    server.register_tool("search_records_by_keyword", "Search records across sheets by keyword", search_records_by_keyword)
+    # 追加で以下を定義していく:
+    # server.register_tool("add_rows", "Add rows to sheet", add_rows_handler)
+    # ...
+
+    logger.info("🚀 MCP server starting...")
+    server.serve()
 
 if __name__ == "__main__":
-    all_data = get_all_sheets_data("パートナー企業")  # スプレッドシート名を指定
-    records = convert_to_dict_records(all_data)
-    print(records)  # 辞書形式で出力
+    main()
