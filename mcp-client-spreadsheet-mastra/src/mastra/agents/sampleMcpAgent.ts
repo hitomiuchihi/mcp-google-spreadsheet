@@ -8,9 +8,10 @@ import { MCPClient } from "@mastra/mcp";
 //   throw new Error("BRAVE_API_KEY is not defined in environment variables");
 // }
 
-// MCPサーバー定義
+// MCP定義
 // const mcp = new MCPConfiguration({   MCPConfigurationは非推奨になったのでMCPClientを使用
 const mcp = new MCPClient({
+	// MCPサーバー情報
   servers: {
     // stdio example
     "github": {
@@ -26,8 +27,8 @@ const mcp = new MCPClient({
   },
 });
 
-export const mcpAgent = new Agent({
-  name: "MCP Agent",
+export const sampleMcpAgent = new Agent({
+  name: "Sample MCP Agent",
   instructions: `
       あなたはウェブ検索ができる便利なアシスタントです。
 
