@@ -1,0 +1,3 @@
+#!/bin/bash
+source /Users/uchihifamily/mcp-google-spreadsheet/mcp-server-spreadsheet-Python/.venv/bin/activate
+python3 /Users/uchihifamily/mcp-google-spreadsheet/mcp-server-spreadsheet-Python/main.py

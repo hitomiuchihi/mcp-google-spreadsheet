@@ -85,3 +85,9 @@ source ~/.zshrc
 ```bash
 mcp-google-spreadsheet
 ```
+
+
+クライアントに実行ファイルの実行権限を与える
+```bash
+chmod +x /Users/uchihifamily/mcp-google-spreadsheet/mcp-server-spreadsheet-Python/mcp-google-spreadsheet
+```
