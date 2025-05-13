@@ -1,22 +1,23 @@
 # main.py - Python版MCPサーバーのエントリーポイント
 
 import os
-import signal
 import sys
+import signal
 import logging
-from contextlib import suppress
-from mcp import Server
-from mcp.transport.stdio import StdioTransport
-
+import asyncio
+from mcp.server.fastmcp import FastMCP
+from mcp.server.stdio import stdio_server
+from mcp.types import TextContent
 from google_auth import get_google_credentials
+
 from google_sheet import (
     get_sheet_data,
     get_all_sheets_data,
     search_records_by_keyword,
-    # convert_to_dict_records,
 )
 
 
+# ログ取得
 def get_logger():
     logger = logging.getLogger("mcp-server")
     handler = logging.StreamHandler()
@@ -26,46 +27,46 @@ def get_logger():
     logger.setLevel(logging.INFO)
     return logger
 
+# サーバーの起動
+async def run_server():
+    logger = get_logger()
+    logger.info("✅ Starting MCP Server...")
+    
+    # 🔑 認証チェックと初回認証
+    try:
+        get_google_credentials()  # この時点で認証されていなければブラウザ起動
+        logger.info("✅ Google認証チェック完了（token.json 確認済み）")
+    except Exception as e:
+        logger.error(f"❌ Google認証に失敗しました: {e}")
+        return  # サーバー起動せず終了
+
+    # Serverインスタンスの作成（名前だけ指定）
+    server = FastMCP("spreadsheet-mcp")
+    
+    server.tool()(get_sheet_data)
+    server.tool()(get_all_sheets_data)
+    server.tool()(search_records_by_keyword)
+
+    # 登録されたツール名をログ出力
+    print("✅ Registered tools:", [
+        func.__name__ for func in [
+            get_sheet_data, get_all_sheets_data, search_records_by_keyword
+        ]
+    ])
+
+    # FastMCPのstdio実行
+    await server.run_stdio_async()
 
 def main():
-    logger = get_logger()
-
-    # graceful shutdown 対応
+    # Ctrl+C に対応
     def shutdown_handler(sig, frame):
-        logger.info("Shutting down MCP server...")
+        print("Shutting down MCP server...")
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
 
-    logger.info("Starting MCP Server...")
-    server = Server(transport=StdioTransport())
-
-    # MCPツール登録
-    server.register_tool(
-        name="get_sheet_data",
-        description="指定したシートのデータを取得する（デフォルトは「シート1」）",
-        func=get_sheet_data,
-    )
-    server.register_tool(
-        name="get_all_sheets_data",
-        description="スプレッドシート内のすべてのシートデータを取得する",
-        func=get_all_sheets_data,
-    )
-    server.register_tool(
-        name="search_records_by_keyword",
-        description="スプレッドシート全体からキーワードを含む行を検索する",
-        func=search_records_by_keyword,
-    )
-    # server.register_tool(
-    #     name="convert_to_dict_records",
-    #     description="スプレッドシートのデータを辞書形式に変換する",
-    #     func=convert_to_dict_records,
-    # )
-
-    # サーバー起動
-    with suppress(KeyboardInterrupt):
-        server.serve()
+    asyncio.run(run_server())
 
 
 if __name__ == "__main__":
