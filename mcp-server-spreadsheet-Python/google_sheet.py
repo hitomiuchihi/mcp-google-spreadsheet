@@ -1,17 +1,19 @@
 # Sheets API操作（gspread or google-api-python-client）
 
 from google_auth import get_drive_service, get_sheets_service
+from mcp.types import TextContent
 import os
 
 # .env から取得する前提で環境変数使用可（dotenv 経由）
 FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")  # 任意で使う
 
-
-###########################################
-# Google Driveからスプレッドシート名でIDを取得 #
-###########################################
-
 def get_spreadsheet_id_by_name(spreadsheet_name, folder_id=None):
+    """get_spreadsheet_id_by_name
+    Google Driveからスプレッドシート名でIDを取得
+    Args:
+        spreadsheet_name: スプレッドシートのファイル名
+        folder_id: Googleドライブのフォルダ名（初期値設定あり）
+    """
     drive_service = get_drive_service()
 
     query_parts = [
@@ -38,11 +40,14 @@ def get_spreadsheet_id_by_name(spreadsheet_name, folder_id=None):
     return files[0]["id"]
 
 
-###########################################
-# スプレッドシートIDとシート名からシートIDを取得 #
-###########################################
 
 def get_sheet_id_by_name(spreadsheet_id, sheet_name):
+    """get_sheet_id_by_name
+    スプレッドシートIDとシート名からシートIDを取得
+    Args: 
+        spreadsheet_name: スプレッドシートのファイル名
+        sheet_name: シート名
+    """
     sheets_service = get_sheets_service()
     spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     for sheet in spreadsheet.get("sheets", []):
@@ -51,11 +56,14 @@ def get_sheet_id_by_name(spreadsheet_id, sheet_name):
     raise Exception(f"Sheet '{sheet_name}' not found in spreadsheet ID '{spreadsheet_id}'")
 
 
-########################################################################
-# スプレッドシートの特定のシートとからデータを取得する関数（デフォルト: "シート1"） #
-########################################################################
-
-def get_sheet_data(spreadsheet_name, sheet_name="シート1", range_=None):
+async def get_sheet_data(spreadsheet_name, sheet_name="シート1", range_=None):
+    """get_sheet_data
+    スプレッドシートの特定のシートとからデータを取得する関数（デフォルト: "シート1"）
+    Args:
+        spreadsheet_name: スプレッドシートのファイル名
+        sheet_name: シート名（初期値設定あり）
+        range: 範囲
+    """
     spreadsheet_id = get_spreadsheet_id_by_name(spreadsheet_name, folder_id=FOLDER_ID)
     sheets_service = get_sheets_service()
 
@@ -66,18 +74,19 @@ def get_sheet_data(spreadsheet_name, sheet_name="シート1", range_=None):
         range=full_range
     ).execute()
 
-    return result.get("values", [])
+    return [TextContent(type="text", text=str(result.get("values", [])))]
 
 
-#################################################
-# スプレッドシート内のすべてのシートデータを取得する関数 #
-#################################################
 
-def get_all_sheets_data(spreadsheet_name):
+async def get_all_sheets_data(spreadsheet_name):
+    """get_all_sheets_data
+    スプレッドシート内のすべてのシートデータを取得する関数
+    Args:
+        spreadsheet_name: スプレッドシートのファイル名
+    """
     spreadsheet_id = get_spreadsheet_id_by_name(spreadsheet_name, folder_id=FOLDER_ID)
     sheets_service = get_sheets_service()
 
-    # スプレッドシート情報取得（シート名一覧）
     spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     sheet_data = {}
 
@@ -89,38 +98,44 @@ def get_all_sheets_data(spreadsheet_name):
         ).execute()
         sheet_data[title] = result.get("values", [])
 
-    return sheet_data
+    return [TextContent(type="text", text=str(sheet_data))]
 
 
-###################################################
-# スプレッドシート全体からキーワードを含む行を抽出する関数 #
-###################################################
-
-def search_records_by_keyword(spreadsheet_name, keyword):
-    data_by_sheet = get_all_sheets_data(spreadsheet_name)
-    keyword_lower = keyword.lower()
+async def search_records_by_keyword(spreadsheet_name, keyword):
+    """get_records_by_keyword
+    スプレッドシート全体からキーワードを含む行を抽出する関数 
+    Args:
+        spreadsheet_name: スプレッドシートのファイル名
+        keyword: キーワード
+    """
+    spreadsheet_id = get_spreadsheet_id_by_name(spreadsheet_name, folder_id=FOLDER_ID)
+    sheets_service = get_sheets_service()
+    spreadsheet = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     matched = {}
+    keyword_lower = keyword.lower()
 
-    for sheet_name, rows in data_by_sheet.items():
-        filtered_rows = []
-        for row in rows:
-            if any(isinstance(cell, str) and keyword_lower in cell.lower() for cell in row):
-                filtered_rows.append(row)
+    for sheet in spreadsheet.get("sheets", []):
+        title = sheet["properties"]["title"]
+        result = sheets_service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=title
+        ).execute()
+        rows = result.get("values", [])
+        filtered_rows = [row for row in rows if any(isinstance(cell, str) and keyword_lower in cell.lower() for cell in row)]
         if filtered_rows:
-            matched[sheet_name] = filtered_rows
+            matched[title] = filtered_rows
 
-    return matched
+    return [TextContent(type="text", text=str(matched))]
 
-
-
-###########################################
-# 2次元配列またはシート群を辞書形式に変換する関数 #
-###########################################
 
 def convert_to_dict_records(values):
-    """
+    """convert_to_dict_records
+    2次元配列またはシート群を辞書形式に変換する関数
     単一シート（2次元リスト） or 複数シート（{sheet_name: 2D list}）両方対応
     [['社名', '業種', ...], [...], ...] → [{社名: A, 業種: IT, ...}, {...}, ...]
+    
+    Args:
+        values: 二次元配列に変換したい値
     """
     if isinstance(values, dict):
         result = {}
@@ -139,5 +154,3 @@ def convert_to_dict_records(values):
         records.append(record)
 
     return records
-
-
